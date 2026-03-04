@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
           repoId,
           userId,
           repoUrl: repo.url,
+          accessToken: session.user.accessToken,
         }),
       })
     );

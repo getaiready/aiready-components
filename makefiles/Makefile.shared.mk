@@ -1,3 +1,6 @@
+ifndef AIREADY_SHARED_MK
+AIREADY_SHARED_MK := 1
+
 ###############################################################################
 # Makefile.shared: Common macros, variables, and environment config for all spokes
 ###############################################################################
@@ -13,7 +16,7 @@ ifneq (,$(wildcard landing/.env))
 	export
 endif
 
-# Dynamically discover all packages in packages/ directory
+# Dynamics discover all packages in packages/ directory
 # Exclude skills (skills.sh distribution only, not npm)
 ALL_SPOKES := $(filter-out skills, $(notdir $(wildcard packages/*)))
 
@@ -170,3 +173,5 @@ define kill_port
 	@lsof -ti :$(1) >/dev/null 2>&1 && lsof -ti :$(1) | xargs kill || true
 	@$(call log_success,Port $(1) is now free)
 endef
+
+endif # AIREADY_SHARED_MK

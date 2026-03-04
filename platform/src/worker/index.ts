@@ -16,9 +16,10 @@ import { createAnalysis, getRepository } from '../lib/db';
 
 export async function handler(event: SQSEvent) {
   for (const record of event.Records) {
-    const { repoId, userId } = JSON.parse(record.body) as {
+    const { repoId, userId, accessToken } = JSON.parse(record.body) as {
       repoId: string;
       userId: string;
+      accessToken?: string;
     };
 
     console.log(`[ScanWorker] Processing repo ${repoId} for user ${userId}`);
@@ -41,14 +42,26 @@ export async function handler(event: SQSEvent) {
         url: repo.url,
         singleBranch: true,
         depth: 1,
+        onAuth: () => ({ username: accessToken || '', password: '' }),
       });
 
       console.log(`[ScanWorker] Running AIReady analysis...`);
 
       // Dynamic import of CLI to avoid loading it if not needed
-      const { analyzeUnified } = await import('@aiready/cli');
+      const cli = (await import('@aiready/cli')) as any;
+      const analyzeUnified = cli.analyzeUnified || cli.default?.analyzeUnified;
+      const scoreUnified = cli.scoreUnified || cli.default?.scoreUnified;
 
-      const results = await analyzeUnified({
+      if (
+        typeof analyzeUnified !== 'function' ||
+        typeof scoreUnified !== 'function'
+      ) {
+        throw new Error(
+          `[ScanWorker] Failed to load analyzeUnified or scoreUnified from @aiready/cli. cli type: ${typeof cli}`
+        );
+      }
+
+      const analysisResults = await analyzeUnified({
         rootDir: tempDir,
         tools: [
           'patterns',
@@ -63,6 +76,14 @@ export async function handler(event: SQSEvent) {
         ],
       } as any);
 
+      console.log(`[ScanWorker] Calculating scores...`);
+      const scoring = await scoreUnified(analysisResults, {});
+
+      const results = {
+        ...analysisResults,
+        scoring,
+      };
+
       console.log(`[ScanWorker] Analysis complete. Normalizing results...`);
 
       const data = normalizeReport(results);
@@ -70,7 +91,7 @@ export async function handler(event: SQSEvent) {
       const analysisId = randomUUID();
 
       // Calculate scores
-      const aiScore = calculateAiScore(data);
+      const aiScore = data.summary.aiReadinessScore;
 
       // Store in S3
       const rawKey = await storeAnalysis({

@@ -25,15 +25,29 @@ export default async function DashboardPage() {
     user = await getUserByEmail(session.user.email);
 
     if (!user) {
+      console.log(
+        `[Dashboard] Creating new user for ${session.user.email} with ID ${session.user.id}`
+      );
       // Create user from session data
+      // Use the session user ID (OAuth ID) instead of generating a new one
+      // to maintain consistency with initial API calls
       user = await createUser({
-        id: crypto.randomUUID(),
+        id: session.user.id,
         email: session.user.email,
         name: session.user.name || undefined,
         image: session.user.image || undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
+    } else {
+      console.log(
+        `[Dashboard] Found existing user ${user.email} with ID ${user.id} (Session ID: ${session.user.id})`
+      );
+      if (user.id !== session.user.id) {
+        console.warn(
+          `[Dashboard] WARNING: Session ID mismatch! Session: ${session.user.id}, DB: ${user.id}`
+        );
+      }
     }
 
     // Fetch user's repositories and teams

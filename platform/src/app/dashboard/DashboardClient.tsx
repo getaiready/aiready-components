@@ -6,6 +6,7 @@ import { signOut } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RocketIcon } from '@/components/Icons';
 import { useEffect } from 'react';
+import { toast } from 'sonner';
 import {
   scoreColor,
   scoreBg,
@@ -73,9 +74,66 @@ export default function DashboardClient({
   });
   const [addRepoError, setAddRepoError] = useState<string | null>(null);
   const [addRepoLoading, setAddRepoLoading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadingRepoId, setUploadingRepoId] = useState<string | null>(null);
   const [scanningRepoId, setScanningRepoId] = useState<string | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [pendingScanRepoIds, setPendingScanRepoIds] = useState<string[]>([]);
+
+  // Automatic Refresh Polling
+  useEffect(() => {
+    if (pendingScanRepoIds.length === 0) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const url =
+          currentTeamId === 'personal'
+            ? '/api/repos'
+            : `/api/repos?teamId=${currentTeamId}`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const updatedRepos: RepoWithAnalysis[] = data.repos.map((r: any) => ({
+          ...r,
+          latestAnalysis: r.latestAnalysis || null,
+        }));
+
+        // Determine who finished
+        const finishedIds: string[] = [];
+        pendingScanRepoIds.forEach((id) => {
+          const oldRepo = repos.find((r) => r.id === id);
+          const newRepo = updatedRepos.find((r) => r.id === id);
+
+          // If it now has a newer analysis timestamp
+          if (
+            newRepo?.latestAnalysis &&
+            (!oldRepo?.latestAnalysis ||
+              newRepo.latestAnalysis.timestamp !==
+                oldRepo.latestAnalysis.timestamp)
+          ) {
+            finishedIds.push(id);
+            toast.success(`Scan complete for ${newRepo.name}!`, {
+              description: `New AI Score: ${newRepo.aiScore || 'N/A'}`,
+            });
+          }
+        });
+
+        // Update overall list
+        setRepos(updatedRepos);
+
+        // Remove from pending
+        if (finishedIds.length > 0) {
+          setPendingScanRepoIds((prev) =>
+            prev.filter((id) => !finishedIds.includes(id))
+          );
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    }, 5000); // check every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [pendingScanRepoIds, currentTeamId, repos]);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [newKeyName, setNewKeyName] = useState('');
   const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
@@ -133,9 +191,11 @@ export default function DashboardClient({
       const res = await fetch(`/api/keys?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
         setApiKeys((prev) => prev.filter((k) => k.id !== id));
+        toast.success('API key deleted');
       }
     } catch (err) {
       console.error('Failed to delete API key:', err);
+      toast.error('Failed to delete API key');
     }
   }
 
@@ -233,6 +293,9 @@ export default function DashboardClient({
     const res = await fetch(`/api/repos?id=${repoId}`, { method: 'DELETE' });
     if (res.ok) {
       setRepos((prev) => prev.filter((r) => r.id !== repoId));
+      toast.success('Repository deleted');
+    } else {
+      toast.error('Failed to delete repository');
     }
   }
 
@@ -299,13 +362,16 @@ export default function DashboardClient({
       const result = await res.json();
       if (!res.ok) {
         setUploadError(result.error || 'Failed to trigger scan');
+        toast.error(result.error || 'Failed to trigger scan');
         return;
       }
 
-      // Show a success message or update UI to indicate scan is in progress
-      alert('Scan triggered! Results will appear here in a few minutes.');
+      // Show a success message and track the background progress
+      toast.success('Scan triggered! Results will appear here automatically.');
+      setPendingScanRepoIds((prev) => [...prev, repoId]);
     } catch {
       setUploadError('Network error while triggering scan');
+      toast.error('Network error while triggering scan');
     } finally {
       setScanningRepoId(null);
     }
@@ -611,7 +677,10 @@ export default function DashboardClient({
                     repo={repo}
                     index={index}
                     uploading={uploadingRepoId === repo.id}
-                    scanning={scanningRepoId === repo.id}
+                    scanning={
+                      scanningRepoId === repo.id ||
+                      pendingScanRepoIds.includes(repo.id)
+                    }
                     onUpload={() => handleUploadAnalysis(repo.id)}
                     onScan={() => handleScanRepo(repo.id)}
                     onDelete={() => handleDeleteRepo(repo.id)}
@@ -690,7 +759,7 @@ export default function DashboardClient({
                               navigator.clipboard.writeText(
                                 `[![AI-Readiness](https://getaiready.dev/api/repos/${repoForBadge.id}/badge)](https://getaiready.dev/dashboard)`
                               );
-                              alert('Copied to clipboard!');
+                              toast.success('Copied to clipboard!');
                             }
                           }}
                           className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors"

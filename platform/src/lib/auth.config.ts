@@ -14,6 +14,7 @@ declare module 'next-auth' {
       email: string;
       name?: string | null;
       image?: string | null;
+      accessToken?: string;
     };
   }
 }
@@ -23,6 +24,7 @@ export const authConfig: NextAuthConfig = {
     GitHub({
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      authorization: { params: { scope: 'read:user user:email repo' } },
     }),
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -107,6 +109,26 @@ export const authConfig: NextAuthConfig = {
         token.email = user.email;
         token.name = user.name;
         token.image = user.image;
+
+        // CRITICAL: Robust sync with database ID
+        // This prevents the "missing repo" issue by ensuring the session ID
+        // always matches the database ID from the moment of login.
+        if (user.email) {
+          const dbUser = await getUserByEmail(user.email);
+          if (dbUser) {
+            token.id = dbUser.id;
+            console.log(
+              `[NextAuth] Synced session ID with database ID for ${user.email}: ${dbUser.id}`
+            );
+          } else {
+            // If user doesn't exist yet, use the provider ID (which is user.id here)
+            // This ID will be used when we create the user in the dashboard.
+            console.log(
+              `[NextAuth] New user detected, using provider ID for ${user.email}: ${user.id}`
+            );
+          }
+        }
+
         // Store provider info for lazy user creation
         if (account.provider === 'google' || account.provider === 'github') {
           token.provider = account.provider;
@@ -127,6 +149,7 @@ export const authConfig: NextAuthConfig = {
         session.user.email = (token.email as string) || session.user.email;
         session.user.name = token.name as string | null | undefined;
         session.user.image = token.image as string | null | undefined;
+        session.user.accessToken = token.accessToken as string | undefined;
       }
       return session;
     },
