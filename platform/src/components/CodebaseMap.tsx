@@ -27,7 +27,7 @@ export default function CodebaseMap({ repos, initialRepoId }: Props) {
   >({
     critical: true,
     major: true,
-    minor: true,
+    minor: false,
     info: false,
     healthy: false,
   });

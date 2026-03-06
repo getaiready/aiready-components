@@ -1,22 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import PlatformShell from '@/components/PlatformShell';
-import { RocketIcon, TrendingUpIcon, RobotIcon } from '@/components/Icons';
-import { toast } from 'sonner';
-import {
-  scoreColor,
-  scoreBg,
-  scoreGlow,
-  scoreLabel,
-} from '@aiready/components';
+import { RocketIcon } from '@/components/Icons';
 import type { Repository, Analysis, Team, TeamMember } from '@/lib/db';
 import { TrendsView } from './TrendsView';
 import { RepoCard } from './components/RepoCard';
 import { TeamManagement } from './components/TeamManagement';
 import { AddRepoModal } from './components/AddRepoModal';
+import { WelcomeHeader } from './components/WelcomeHeader';
+import { LimitsBanner } from './components/LimitsBanner';
+import { CliQuickstart } from './components/CliQuickstart';
+import { BadgeModal } from './components/BadgeModal';
+import { useDashboardData } from './hooks/useDashboardData';
 
 type RepoWithAnalysis = Repository & { latestAnalysis: Analysis | null };
 
@@ -43,7 +40,20 @@ export default function DashboardClient({
   const [currentTeamId, setCurrentTeamId] = useState<string | 'personal'>(
     'personal'
   );
-  const [repos, setRepos] = useState<RepoWithAnalysis[]>(initialRepos);
+
+  const {
+    repos,
+    setRepos,
+    pendingScanRepoIds,
+    uploadingRepoId,
+    scanningRepoId,
+    uploadError,
+    setUploadError,
+    handleScanRepo,
+    handleUploadAnalysis,
+    handleDeleteRepo,
+  } = useDashboardData(initialRepos, currentTeamId);
+
   const [showAddRepo, setShowAddRepo] = useState(false);
   const [addRepoForm, setAddRepoForm] = useState({
     name: '',
@@ -53,10 +63,6 @@ export default function DashboardClient({
   });
   const [addRepoError, setAddRepoError] = useState<string | null>(null);
   const [addRepoLoading, setAddRepoLoading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploadingRepoId, setUploadingRepoId] = useState<string | null>(null);
-  const [scanningRepoId, setScanningRepoId] = useState<string | null>(null);
-  const [pendingScanRepoIds, setPendingScanRepoIds] = useState<string[]>([]);
   const [billingLoading, setBillingLoading] = useState(false);
   const [repoForTrends, setRepoForTrends] = useState<{
     id: string;
@@ -66,104 +72,6 @@ export default function DashboardClient({
     id: string;
     name: string;
   } | null>(null);
-
-  useEffect(() => {
-    if (currentTeamId === 'personal') {
-      setRepos(initialRepos);
-    } else {
-      fetchTeamRepos(currentTeamId);
-    }
-  }, [currentTeamId, initialRepos]);
-
-  async function fetchTeamRepos(teamId: string) {
-    try {
-      const res = await fetch(`/api/repos?teamId=${teamId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setRepos(
-          data.repos.map((r: any) => ({
-            ...r,
-            latestAnalysis: r.latestAnalysis || null,
-          }))
-        );
-      }
-    } catch (err) {
-      console.error('Failed to fetch team repos:', err);
-    }
-  }
-
-  // Initialize pending scans from repo data
-  useEffect(() => {
-    const scanningIds = repos.filter((r) => r.isScanning).map((r) => r.id);
-    if (scanningIds.length > 0) {
-      setPendingScanRepoIds((prev) => {
-        const next = [...new Set([...prev, ...scanningIds])];
-        return next.length === prev.length ? prev : next;
-      });
-    }
-  }, [repos]);
-
-  // Automatic Refresh Polling
-  useEffect(() => {
-    if (pendingScanRepoIds.length === 0) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const url =
-          currentTeamId === 'personal'
-            ? '/api/repos'
-            : `/api/repos?teamId=${currentTeamId}`;
-        const res = await fetch(url);
-        if (!res.ok) return;
-
-        const data = await res.json();
-        const updatedRepos: RepoWithAnalysis[] = data.repos.map((r: any) => ({
-          ...r,
-          latestAnalysis: r.latestAnalysis || null,
-        }));
-
-        // Determine who finished or failed
-        const finishedIds: string[] = [];
-        const failedIds: string[] = [];
-
-        pendingScanRepoIds.forEach((id) => {
-          const oldRepo = repos.find((r) => r.id === id);
-          const newRepo = updatedRepos.find((r) => r.id === id);
-
-          if (
-            newRepo?.latestAnalysis &&
-            (!oldRepo?.latestAnalysis ||
-              newRepo.latestAnalysis.timestamp !==
-                oldRepo.latestAnalysis.timestamp)
-          ) {
-            finishedIds.push(id);
-            toast.success(`Scan complete for ${newRepo.name}!`, {
-              description: `New AI Score: ${newRepo.aiScore || 'N/A'}`,
-            });
-          } else if (newRepo?.lastError && !oldRepo?.lastError) {
-            failedIds.push(id);
-            toast.error(`Scan failed for ${newRepo.name}`, {
-              description: newRepo.lastError,
-            });
-          }
-        });
-
-        setRepos(updatedRepos);
-
-        if (finishedIds.length > 0 || failedIds.length > 0) {
-          setPendingScanRepoIds((prev) =>
-            prev.filter(
-              (id) => !finishedIds.includes(id) && !failedIds.includes(id)
-            )
-          );
-        }
-      } catch (err) {
-        console.error('Polling error:', err);
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [pendingScanRepoIds, currentTeamId, repos]);
 
   async function handleCheckout(plan: 'pro' | 'team') {
     try {
@@ -253,95 +161,6 @@ export default function DashboardClient({
     }
   }
 
-  async function handleDeleteRepo(repoId: string) {
-    if (!confirm('Delete this repository and all its analyses?')) return;
-
-    const res = await fetch(`/api/repos?id=${repoId}`, { method: 'DELETE' });
-    if (res.ok) {
-      setRepos((prev) => prev.filter((r) => r.id !== repoId));
-      toast.success('Repository deleted');
-    } else {
-      toast.error('Failed to delete repository');
-    }
-  }
-
-  async function handleUploadAnalysis(repoId: string) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-
-      setUploadingRepoId(repoId);
-      setUploadError(null);
-
-      try {
-        const text = await file.text();
-        const data = JSON.parse(text);
-
-        const res = await fetch('/api/analysis/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ repoId, data }),
-        });
-
-        const result = await res.json();
-        if (!res.ok) {
-          setUploadError(result.error || 'Upload failed');
-          return;
-        }
-
-        setRepos((prev) =>
-          prev.map((r) =>
-            r.id === repoId
-              ? {
-                  ...r,
-                  latestAnalysis: result.analysis,
-                  aiScore: result.analysis.aiScore,
-                }
-              : r
-          )
-        );
-      } catch {
-        setUploadError('Invalid JSON file or network error');
-      } finally {
-        setUploadingRepoId(null);
-      }
-    };
-
-    input.click();
-  }
-
-  async function handleScanRepo(repoId: string) {
-    setScanningRepoId(repoId);
-    setUploadError(null);
-
-    try {
-      const res = await fetch('/api/analysis/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repoId }),
-      });
-
-      const result = await res.json();
-      if (!res.ok) {
-        setUploadError(result.error || 'Failed to trigger scan');
-        toast.error(result.error || 'Failed to trigger scan');
-        return;
-      }
-
-      toast.success('Scan triggered! Results will appear here automatically.');
-      setPendingScanRepoIds((prev) => [...prev, repoId]);
-    } catch {
-      setUploadError('Network error while triggering scan');
-      toast.error('Network error while triggering scan');
-    } finally {
-      setScanningRepoId(null);
-    }
-  }
-
   return (
     <PlatformShell
       user={user}
@@ -350,141 +169,26 @@ export default function DashboardClient({
       activePage="dashboard"
     >
       <div className="p-4 sm:p-6 lg:p-8 space-y-8">
-        {/* Welcome + overall score */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-        >
-          <div>
-            <h1 className="text-3xl font-bold text-white">
-              Welcome back, {user.name?.split(' ')[0] || 'Developer'}!
-            </h1>
-            <p className="text-slate-400 mt-1">
-              {repos.length === 0
-                ? 'Add your first repository to start tracking AI readiness.'
-                : `Tracking ${repos.length} repositor${repos.length === 1 ? 'y' : 'ies'}`}
-            </p>
-          </div>
-          {overallScore != null && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className={`flex items-center gap-4 px-6 py-4 rounded-2xl border ${scoreBg(overallScore)} shadow-lg ${scoreGlow(overallScore)}`}
-            >
-              <div className="text-right">
-                <div
-                  className={`text-4xl font-black ${scoreColor(overallScore)}`}
-                >
-                  {overallScore}
-                </div>
-                <div className="text-xs text-slate-500 -mt-1">/ 100</div>
-              </div>
-              <div className="pl-4 border-l border-slate-700">
-                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                  Overall AI Score
-                </div>
-                <div
-                  className={`text-sm font-semibold ${scoreColor(overallScore)}`}
-                >
-                  {scoreLabel(overallScore)}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </motion.div>
+        <WelcomeHeader
+          userName={user.name || 'Developer'}
+          repoCount={repos.length}
+          overallScore={overallScore}
+        />
 
-        {/* Limits banner */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4"
-        >
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 uppercase tracking-wide">
-                Repos
-              </span>
-              <span className="text-lg font-bold text-white">
-                {repos.length}
-              </span>
-              <span className="text-xs text-slate-500">
-                / {currentTeamId === 'personal' ? '3' : '∞'}
-              </span>
-            </div>
-            <div className="h-4 w-px bg-slate-700" />
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 uppercase tracking-wide">
-                This Month
-              </span>
-              <span className="text-lg font-bold text-white">
-                {currentTeamId === 'personal'
-                  ? Math.max(
-                      0,
-                      10 - repos.filter((r) => r.latestAnalysis).length
-                    )
-                  : '∞'}
-              </span>
-              <span className="text-xs text-slate-500">runs left</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-xs text-slate-500">
-              <span className="capitalize font-semibold text-slate-300">
-                {currentTeamId === 'personal'
-                  ? 'Personal Plan'
-                  : `${teams.find((t) => t.teamId === currentTeamId)?.team.plan || 'Free'} Plan`}
-              </span>
-            </div>
-            {currentTeamId !== 'personal' && (
-              <div className="flex items-center gap-2">
-                {teams.find((t) => t.teamId === currentTeamId)?.team
-                  .stripeCustomerId ? (
-                  <button
-                    onClick={() => {
-                      const team = teams.find(
-                        (t) => t.teamId === currentTeamId
-                      )?.team;
-                      if (team?.stripeCustomerId)
-                        handlePortal(team.stripeCustomerId);
-                    }}
-                    disabled={billingLoading}
-                    className="text-xs text-cyan-400 hover:text-cyan-300 font-bold px-3 py-1 rounded-lg border border-cyan-400/30 hover:bg-cyan-400/10 transition-all"
-                  >
-                    {billingLoading ? 'Loading...' : 'Manage Billing'}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleCheckout('team')}
-                    disabled={billingLoading}
-                    className="text-xs bg-cyan-500 hover:bg-cyan-400 text-white font-bold px-3 py-1 rounded-lg shadow-lg shadow-cyan-500/20 transition-all disabled:opacity-50"
-                  >
-                    {billingLoading ? 'Loading...' : 'Upgrade'}
-                  </button>
-                )}
-              </div>
-            )}
-            {currentTeamId === 'personal' && (
-              <Link
-                href="/pricing"
-                className="text-xs text-cyan-400 hover:underline font-bold"
-              >
-                Pricing
-              </Link>
-            )}
-          </div>
-        </motion.div>
+        <LimitsBanner
+          repoCount={repos.length}
+          currentTeamId={currentTeamId}
+          teams={teams}
+          analyzedRepoCount={repos.filter((r) => r.latestAnalysis).length}
+          billingLoading={billingLoading}
+          onPortal={handlePortal}
+          onCheckout={handleCheckout}
+        />
 
         {/* Upload error banner */}
         <AnimatePresence>
           {uploadError && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="bg-red-900/30 border border-red-500/30 text-red-300 px-4 py-3 rounded-xl flex justify-between items-center"
-            >
+            <div className="bg-red-900/30 border border-red-500/30 text-red-300 px-4 py-3 rounded-xl flex justify-between items-center">
               <span>{uploadError}</span>
               <button
                 onClick={() => setUploadError(null)}
@@ -492,7 +196,7 @@ export default function DashboardClient({
               >
                 ×
               </button>
-            </motion.div>
+            </div>
           )}
         </AnimatePresence>
 
@@ -500,31 +204,19 @@ export default function DashboardClient({
         <section>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-white">Repositories</h2>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
               onClick={() => setShowAddRepo(true)}
               className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-blue-500/25 transition-all"
             >
               <span className="text-lg leading-none">+</span> Add Repository
-            </motion.button>
+            </button>
           </div>
 
           {repos.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass-card rounded-2xl p-12 text-center"
-            >
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="mb-6"
-              >
-                <div className="inline-block text-6xl text-slate-50">
-                  <RocketIcon className="w-14 h-14" />
-                </div>
-              </motion.div>
+            <div className="glass-card rounded-2xl p-12 text-center">
+              <div className="mb-6 inline-block text-6xl text-slate-50">
+                <RocketIcon className="w-14 h-14" />
+              </div>
               <h3 className="text-2xl font-bold text-white mb-3">
                 Get Started with AIReady
               </h3>
@@ -532,15 +224,13 @@ export default function DashboardClient({
                 Add a repository, run the CLI, then upload the results to get
                 your AI readiness score.
               </p>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <button
                 onClick={() => setShowAddRepo(true)}
                 className="mt-8 btn-primary"
               >
                 Add Your First Repository
-              </motion.button>
-            </motion.div>
+              </button>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
               <AnimatePresence>
@@ -585,30 +275,7 @@ export default function DashboardClient({
 
         {/* CLI quickstart */}
         {repos.length > 0 && repos.every((r) => !r.latestAnalysis) && (
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-card rounded-2xl p-6"
-          >
-            <h3 className="font-semibold text-lg text-white mb-2">
-              Run your first analysis
-            </h3>
-            <p className="text-slate-400 text-sm mb-4">
-              Generate a report JSON and upload it to see your AI readiness
-              scores.
-            </p>
-            <div className="font-mono text-sm space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500">$</span>
-                <span className="text-cyan-400">
-                  npx @aiready/cli scan . --output json{' > '}report.json
-                </span>
-              </div>
-              <div className="text-slate-500 text-xs">
-                # then upload report.json via the button on your repo card
-              </div>
-            </div>
-          </motion.section>
+          <CliQuickstart />
         )}
 
         {/* Team Management Section */}
@@ -632,88 +299,5 @@ export default function DashboardClient({
         error={addRepoError}
       />
     </PlatformShell>
-  );
-}
-
-function BadgeModal({
-  repo,
-  onClose,
-}: {
-  repo: { id: string; name: string } | null;
-  onClose: () => void;
-}) {
-  return (
-    <AnimatePresence>
-      {repo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-slate-900 border border-slate-700 rounded-3xl p-6 w-full max-w-xl shadow-2xl"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                🛡️ AI-Readiness Badge
-              </h2>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-slate-800 rounded-lg text-slate-400"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              <div className="flex flex-col items-center justify-center p-8 bg-slate-950/50 rounded-2xl border border-slate-700/50">
-                <img
-                  src={`/api/repos/${repo.id}/badge`}
-                  alt="AI Readiness Badge"
-                  className="h-8"
-                />
-                <p className="text-xs text-slate-500 mt-4">Preview Badge</p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                    Markdown (README.md)
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      readOnly
-                      value={`[![AI-Readiness](https://platform.getaiready.dev/api/repos/${repo.id}/badge)](https://platform.getaiready.dev/dashboard)`}
-                      className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300 font-mono"
-                    />
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(
-                          `[![AI-Readiness](https://platform.getaiready.dev/api/repos/${repo.id}/badge)](https://platform.getaiready.dev/dashboard)`
-                        );
-                        toast.success('Copied to clipboard!');
-                      }}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                    Direct URL
-                  </label>
-                  <input
-                    readOnly
-                    value={`https://getaiready.dev/api/repos/${repo.id}/badge`}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300 font-mono"
-                  />
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
   );
 }

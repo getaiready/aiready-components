@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { scoreColor, scoreBg, scoreLabel } from '@aiready/components';
 import type { Repository, Analysis } from '@/lib/db';
-import { TrendingUpIcon, RocketIcon } from './Icons';
+import { TrendingUpIcon } from './Icons';
+import { TrendChart } from './trends/TrendChart';
+import { InsightCard } from './trends/InsightCard';
+import { RecentScans } from './trends/RecentScans';
 
 interface Props {
   repos: Repository[];
@@ -125,197 +126,9 @@ export default function TrendsExplorer({ repos }: Props) {
             </div>
           </div>
 
-          <div className="space-y-6">
-            <h3 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em]">
-              Recent Scans
-            </h3>
-            <div className="space-y-3">
-              {history
-                .slice()
-                .reverse()
-                .map((analysis, idx) => (
-                  <div
-                    key={analysis.id}
-                    className="p-4 rounded-2xl bg-slate-900/50 border border-slate-800 flex items-center justify-between group hover:border-slate-700 transition-colors"
-                  >
-                    <div>
-                      <p className="text-xs font-bold text-white mb-0.5">
-                        {new Date(analysis.timestamp).toLocaleDateString(
-                          undefined,
-                          {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          }
-                        )}
-                      </p>
-                      <p className="text-[10px] text-slate-500 uppercase font-black">
-                        {scoreLabel(analysis.aiScore!)}
-                      </p>
-                    </div>
-                    <div
-                      className={`text-lg font-black ${scoreColor(analysis.aiScore!)}`}
-                    >
-                      {analysis.aiScore}
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
+          <RecentScans history={history} />
         </div>
       )}
-    </div>
-  );
-}
-
-function TrendChart({ history }: { history: Analysis[] }) {
-  const scores = history.map((h) => h.aiScore || 0);
-  const maxScore = 100;
-  const height = 300;
-  const width = 800;
-  const padding = 50;
-
-  const points = scores.map((score, i) => {
-    const x = padding + (i * (width - 2 * padding)) / (scores.length - 1 || 1);
-    const y = height - padding - (score * (height - 2 * padding)) / maxScore;
-    return { x, y, score };
-  });
-
-  const pathD =
-    points.length > 0
-      ? `M ${points[0].x} ${points[0].y} ` +
-        points
-          .slice(1)
-          .map((p) => `L ${p.x} ${p.y}`)
-          .join(' ')
-      : '';
-
-  return (
-    <div className="relative h-[350px] w-full">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-full"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(34, 211, 238, 0.2)" />
-            <stop offset="100%" stopColor="rgba(34, 211, 238, 0)" />
-          </linearGradient>
-        </defs>
-
-        {/* Grid */}
-        {[0, 25, 50, 75, 100].map((level) => (
-          <g key={level}>
-            <line
-              x1={padding}
-              y1={height - padding - (level * (height - 2 * padding)) / 100}
-              x2={width - padding}
-              y2={height - padding - (level * (height - 2 * padding)) / 100}
-              className="stroke-slate-800/50"
-              strokeWidth="1"
-            />
-            <text
-              x={padding - 15}
-              y={height - padding - (level * (height - 2 * padding)) / 100}
-              className="text-[10px] fill-slate-500 font-mono"
-              textAnchor="end"
-              alignmentBaseline="middle"
-            >
-              {level}
-            </text>
-          </g>
-        ))}
-
-        {/* Fill */}
-        <path
-          d={`${pathD} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`}
-          fill="url(#trendGradient)"
-        />
-
-        {/* Path */}
-        <motion.path
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 1.5, ease: 'easeInOut' }}
-          d={pathD}
-          fill="none"
-          stroke="rgba(34, 211, 238, 0.8)"
-          strokeWidth="4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-
-        {/* Dots */}
-        {points.map((p, i) => (
-          <g key={i} className="group/dot">
-            <circle
-              cx={p.x}
-              cy={p.y}
-              r="6"
-              className={`fill-slate-950 stroke-[3] transition-all duration-300 ${scoreColor(p.score).replace('text', 'stroke')}`}
-            />
-            <circle
-              cx={p.x}
-              cy={p.y}
-              r="12"
-              className="fill-transparent cursor-help"
-            />
-            <g className="opacity-0 group-hover/dot:opacity-100 transition-opacity">
-              <rect
-                x={p.x - 20}
-                y={p.y - 35}
-                width="40"
-                height="24"
-                rx="6"
-                className="fill-slate-800 stroke-slate-700"
-              />
-              <text
-                x={p.x}
-                y={p.y - 18}
-                textAnchor="middle"
-                className="text-xs font-bold fill-white"
-              >
-                {p.score}
-              </text>
-            </g>
-          </g>
-        ))}
-      </svg>
-      <div className="flex justify-between mt-4 px-[50px] text-[10px] font-black text-slate-500 uppercase tracking-widest">
-        <span>History Start</span>
-        <span>Current Status</span>
-      </div>
-    </div>
-  );
-}
-
-function InsightCard({
-  title,
-  value,
-  description,
-  trend,
-}: {
-  title: string;
-  value: string;
-  description: string;
-  trend: 'up' | 'down';
-}) {
-  return (
-    <div className="p-6 rounded-3xl bg-slate-900/50 border border-slate-800 flex items-start gap-4">
-      <div
-        className={`p-3 rounded-2xl ${trend === 'up' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}
-      >
-        {trend === 'up' ? '↗' : '↘'}
-      </div>
-      <div>
-        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
-          {title}
-        </p>
-        <p className="text-2xl font-black text-white">{value}</p>
-        <p className="text-xs text-slate-400 mt-1">{description}</p>
-      </div>
     </div>
   );
 }

@@ -275,25 +275,45 @@ export class GraphBuilder {
     const ctxDetails =
       breakdown.contextFragmentation?.details ||
       contextData.results ||
-      contextData.issues || // Added issues fallback
+      contextData.issues ||
       (Array.isArray(contextData) ? contextData : []) ||
       raw.results ||
       [];
     const chains = contextData.summary?.chains || contextData.chains || [];
 
-    // Map chains for token cost
+    // Build comprehensive token cost map from all sources
     const fileTokenCosts = new Map<string, number>();
+
+    // Source 1: chains from context analyzer
     chains.forEach((c: any) => {
-      if (c.file) fileTokenCosts.set(builder.cleanPath(c.file), c.contextCost);
+      if (c.file && (c.contextCost || c.tokenCost)) {
+        fileTokenCosts.set(
+          builder.cleanPath(c.file),
+          c.contextCost || c.tokenCost
+        );
+      }
+    });
+
+    // Source 2: ctxDetails items
+    ctxDetails.forEach((ctx: any) => {
+      const file = ctx.file || ctx.fileName;
+      if (!file) return;
+      const cleanFile = builder.cleanPath(file);
+      const cost = ctx.contextBudget || ctx.tokenCost || ctx.contextCost;
+      if (cost && !fileTokenCosts.has(cleanFile)) {
+        fileTokenCosts.set(cleanFile, cost);
+      }
     });
 
     ctxDetails.forEach((ctx: any) => {
       const file = ctx.file || ctx.fileName;
       if (!file) return;
       const cleanFile = builder.cleanPath(file);
-      // contextBudget is the total cost including deps, tokenCost is just the file
       const contextBudget =
-        ctx.contextBudget || ctx.tokenCost || fileTokenCosts.get(cleanFile);
+        ctx.contextBudget ||
+        ctx.tokenCost ||
+        ctx.contextCost ||
+        fileTokenCosts.get(cleanFile);
 
       processFileNode(
         file,
@@ -373,6 +393,11 @@ export class GraphBuilder {
       } else {
         node.severity = 'healthy';
         if (!node.color) node.color = '#97c2fc';
+      }
+
+      // Backfill tokenCost from our comprehensive map if not already set
+      if (node.tokenCost == null && fileTokenCosts.has(node.id)) {
+        node.tokenCost = fileTokenCosts.get(node.id);
       }
     }
 
