@@ -5,7 +5,7 @@ import type {
   IssueType,
 } from '@aiready/core';
 
-export interface ChangeAmplificationOptions extends ScanOptions {}
+export type ChangeAmplificationOptions = ScanOptions;
 
 export interface ChangeAmplificationIssue extends Issue {
   type: IssueType.ChangeAmplification;

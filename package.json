@@ -28,14 +28,14 @@
   },
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./cli": {
+      "types": "./dist/cli.d.ts",
       "import": "./dist/cli.mjs",
-      "require": "./dist/cli.js",
-      "types": "./dist/cli.d.ts"
+      "require": "./dist/cli.js"
     },
     "./dist/cli.js": {
       "require": "./dist/cli.js",
