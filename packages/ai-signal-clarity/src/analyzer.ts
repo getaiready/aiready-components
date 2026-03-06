@@ -3,7 +3,7 @@
  * Scans all TS/JS files in a directory and aggregates signals.
  */
 
-import { scanFiles, calculateAiSignalClarity } from '@aiready/core';
+import { scanFiles, calculateAiSignalClarity, Severity } from '@aiready/core';
 import { scanFile } from './scanner';
 import type {
   AiSignalClarityOptions,
@@ -60,22 +60,32 @@ export async function analyzeAiSignalClarity(
     totalExports: Math.max(1, aggregate.totalExports),
   });
 
+  // Helper for severity mapping
+  const getLevel = (s: any): number => {
+    if (s === Severity.Critical || s === 'critical') return 4;
+    if (s === Severity.Major || s === 'major') return 3;
+    if (s === Severity.Minor || s === 'minor') return 2;
+    if (s === Severity.Info || s === 'info') return 1;
+    return 0;
+  };
+
   // Count severities
   const allIssues = results.flatMap((r) => r.issues);
   const criticalSignals = allIssues.filter(
-    (i) => i.severity === 'critical'
+    (i) => getLevel(i.severity) === 4
   ).length;
-  const majorSignals = allIssues.filter((i) => i.severity === 'major').length;
-  const minorSignals = allIssues.filter((i) => i.severity === 'minor').length;
+  const majorSignals = allIssues.filter(
+    (i) => getLevel(i.severity) === 3
+  ).length;
+  const minorSignals = allIssues.filter(
+    (i) => getLevel(i.severity) === 2
+  ).length;
 
   // Filter by minSeverity
-  const severityOrder = { info: 0, minor: 1, major: 2, critical: 3 };
-  const minSev = options.minSeverity ?? 'info';
+  const minSev = options.minSeverity ?? Severity.Info;
   const filteredResults = results.map((r) => ({
     ...r,
-    issues: r.issues.filter(
-      (i) => severityOrder[i.severity] >= severityOrder[minSev]
-    ),
+    issues: r.issues.filter((i) => getLevel(i.severity) >= getLevel(minSev)),
   }));
 
   return {
