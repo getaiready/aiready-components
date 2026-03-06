@@ -163,14 +163,15 @@ export default $config({
       },
     });
 
-    scanQueue.subscribe(scanWorker.arn);
+    // @ts-ignore - SST Ion expects the function object for auto-permissions
+    scanQueue.subscribe(scanWorker);
 
     // Lambda worker for processing analysis results (calculating metrics/trends)
     const analysisProcessor = new sst.aws.Function('AnalysisProcessor', {
       handler: 'src/functions/process-analysis.handler',
       timeout: '5 minutes',
       memory: '1024 MB',
-      link: [table, bucket],
+      link: [table, bucket, analysisQueue],
       permissions: [
         {
           actions: ['ses:SendEmail', 'ses:SendRawEmail'],
@@ -183,7 +184,8 @@ export default $config({
       },
     });
 
-    analysisQueue.subscribe(analysisProcessor.arn);
+    // @ts-ignore - SST Ion expects the function object for auto-permissions
+    analysisQueue.subscribe(analysisProcessor);
 
     const site = new sst.aws.Nextjs('Dashboard', {
       ...siteConfig,
