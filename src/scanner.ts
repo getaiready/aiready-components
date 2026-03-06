@@ -10,6 +10,7 @@
 import { readFileSync } from 'fs';
 import { parse } from '@typescript-eslint/typescript-estree';
 import type { TSESTree } from '@typescript-eslint/types';
+import { Severity, IssueType } from '@aiready/core';
 import type {
   AiSignalClarityIssue,
   FileAiSignalClarityResult,
@@ -191,19 +192,19 @@ export function scanFile(
 
   function reportIssue(
     category: AiSignalClarityIssue['category'],
-    severity: AiSignalClarityIssue['severity'],
+    severity: Severity,
     message: string,
     node: TSESTree.Node,
     suggestion?: string,
     snippet?: string
   ) {
+    let type: IssueType = IssueType.AiSignalClarity;
+    if (category === 'magic-literal') type = IssueType.MagicLiteral;
+    else if (category === 'boolean-trap') type = IssueType.BooleanTrap;
+    else if (category === 'ambiguous-name') type = IssueType.AmbiguousApi;
+
     issues.push({
-      type:
-        category === 'magic-literal'
-          ? 'magic-literal'
-          : category === 'boolean-trap'
-            ? 'boolean-trap'
-            : 'ai-signal-clarity',
+      type,
       category,
       severity,
       message,
@@ -226,7 +227,7 @@ export function scanFile(
           signals.magicLiterals++;
           reportIssue(
             'magic-literal',
-            'minor',
+            Severity.Minor,
             `Magic number ${node.value} — AI will invent wrong semantics. Extract to a named constant.`,
             node,
             `const MEANINGFUL_NAME = ${node.value};`,
@@ -239,7 +240,7 @@ export function scanFile(
           signals.magicLiterals++;
           reportIssue(
             'magic-literal',
-            'info',
+            Severity.Info,
             `Magic string "${node.value}" — intent is ambiguous to AI. Consider a named constant.`,
             node,
             `const CONSTANT_NAME = '${node.value}';`
@@ -263,7 +264,7 @@ export function scanFile(
           signals.booleanTraps++;
           reportIssue(
             'boolean-trap',
-            'major',
+            Severity.Major,
             `Boolean trap: positional boolean argument(s) at call site. AI inverts intent ~30% of the time.`,
             node,
             'Replace boolean arg with a named options object: { enabled: true }'
@@ -286,7 +287,7 @@ export function scanFile(
             // cap issue count per file
             reportIssue(
               'ambiguous-name',
-              'info',
+              Severity.Info,
               `Ambiguous identifier "${name}" — AI cannot infer intent and will guess incorrectly.`,
               node.id,
               'Use a domain-descriptive name instead.'
@@ -343,7 +344,7 @@ export function scanFile(
           signals.implicitSideEffects++;
           reportIssue(
             'implicit-side-effect',
-            'major',
+            Severity.Major,
             'Function mutates external state without returning a value — AI misses this contract.',
             node,
             'Make side-effects explicit in function name (e.g., updateX) or return a result.'
@@ -372,7 +373,7 @@ export function scanFile(
           signals.undocumentedExports++;
           reportIssue(
             'undocumented-export',
-            'minor',
+            Severity.Minor,
             `Public export "${name}" has no JSDoc — AI fabricates behavior from the name alone.`,
             node,
             'Add a JSDoc comment describing parameters, return value, and side effects.'
@@ -409,7 +410,7 @@ export function scanFile(
       signals.deepCallbacks = maxDepth - 2;
       reportIssue(
         'deep-callback',
-        'major',
+        Severity.Major,
         `Callback nesting depth ${maxDepth} — AI loses control flow context beyond 3 levels.`,
         ast.body[0] ?? ast,
         'Extract nested callbacks into named async functions or use async/await.'
@@ -423,7 +424,7 @@ export function scanFile(
       signals.overloadedSymbols++;
       reportIssue(
         'overloaded-symbol',
-        'critical',
+        Severity.Critical,
         `Symbol "${name}" has ${sigs.size} overloaded signatures — AI picks the wrong one.`,
         ast.body[0] ?? ast,
         `Rename each overload to a unique, descriptive name.`
@@ -435,6 +436,12 @@ export function scanFile(
     filePath,
     issues,
     signals,
+    fileName: filePath, // Add fileName for AnalysisResult compatibility
+    metrics: {
+      // Add metrics for AnalysisResult compatibility
+      totalSymbols: signals.totalSymbols,
+      totalExports: signals.totalExports,
+    },
   };
 }
 
@@ -450,6 +457,11 @@ function emptyResult(filePath: string): FileAiSignalClarityResult {
       implicitSideEffects: 0,
       deepCallbacks: 0,
       overloadedSymbols: 0,
+      totalSymbols: 0,
+      totalExports: 0,
+    },
+    fileName: filePath,
+    metrics: {
       totalSymbols: 0,
       totalExports: 0,
     },
