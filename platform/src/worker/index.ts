@@ -95,21 +95,45 @@ export async function handler(event: SQSEvent) {
         );
       }
 
+      // Recommended Platform Defaults (matching ScanConfigForm.tsx)
+      const recommendedDefaults = {
+        scan: {
+          tools: [
+            ToolName.PatternDetect,
+            ToolName.ContextAnalyzer,
+            ToolName.NamingConsistency,
+            ToolName.ChangeAmplification,
+            ToolName.AiSignalClarity,
+            ToolName.AgentGrounding,
+            ToolName.TestabilityIndex,
+            ToolName.DocDrift,
+            ToolName.DependencyHealth,
+          ],
+          exclude: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
+        },
+        tools: {
+          [ToolName.PatternDetect]: { minSimilarity: 0.8, minLines: 5 },
+          [ToolName.ContextAnalyzer]: { maxDepth: 5, minCohesion: 0.6 },
+          [ToolName.AiSignalClarity]: {
+            checkMagicLiterals: true,
+            checkBooleanTraps: true,
+            checkAmbiguousNames: true,
+            checkUndocumentedExports: true,
+            checkImplicitSideEffects: true,
+            checkDeepCallbacks: true,
+          },
+          [ToolName.AgentGrounding]: { maxRecommendedDepth: 4 },
+          [ToolName.DocDrift]: { staleMonths: 6 },
+        },
+      };
+
+      const scanConfig = repo.scanConfig || recommendedDefaults;
+
       const analysisResults = await analyzeUnified({
         rootDir: tempDir,
-        tools: repo.scanConfig?.scan?.tools || [
-          ToolName.PatternDetect,
-          ToolName.ContextAnalyzer,
-          ToolName.NamingConsistency,
-          ToolName.ChangeAmplification,
-          ToolName.AiSignalClarity,
-          ToolName.AgentGrounding,
-          ToolName.TestabilityIndex,
-          ToolName.DocDrift,
-          ToolName.DependencyHealth,
-        ],
-        toolConfigs: repo.scanConfig?.tools,
-        ...(repo.scanConfig?.scan || {}),
+        tools: scanConfig.scan?.tools,
+        toolConfigs: scanConfig.tools,
+        ...(scanConfig.scan || {}),
         progressCallback: (event: any) => {
           if (event.message) {
             console.log(`[ScanWorker] [${event.tool}] ${event.message}`);
