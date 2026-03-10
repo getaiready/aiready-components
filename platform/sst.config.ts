@@ -75,12 +75,16 @@ export default $config({
     const scanQueue = new sst.aws.Queue('ScanQueue', {
       visibilityTimeout: '15 minutes',
       dlq: scanDLQ.arn,
+      // Enable Long Polling to reduce request volume
+      wait: '20 seconds',
     });
 
     // Queue for processing uploaded analysis results
     const analysisQueue = new sst.aws.Queue('AnalysisQueue', {
       visibilityTimeout: '5 minutes',
       dlq: analysisDLQ.arn,
+      // Enable Long Polling
+      wait: '20 seconds',
     });
 
     // Next.js site configuration
@@ -158,6 +162,9 @@ export default $config({
       handler: 'src/worker/index.handler',
       timeout: '15 minutes',
       memory: '2048 MB',
+      batch: {
+        window: '10 seconds',
+      },
       nodejs: {
         install: ['isomorphic-git', 'http'],
         copy: [
@@ -194,6 +201,9 @@ export default $config({
       handler: 'src/functions/process-analysis.handler',
       timeout: '5 minutes',
       memory: '1024 MB',
+      batch: {
+        window: '10 seconds',
+      },
       link: [table, bucket, analysisQueue],
       permissions: [
         {
