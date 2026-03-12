@@ -332,42 +332,44 @@ export default function ClawHubPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-4xl mx-auto">
-            {/* Free Tier */}
-            <div className="glass-card p-10 flex flex-col hover:border-white/20 transition-all">
+            {/* Free Tier - STYLISH & EQUAL */}
+            <div className="glass-card p-10 flex flex-col border-cyber-purple/20 bg-cyber-purple/[0.02] hover:border-cyber-purple/40 transition-all shadow-[0_0_80px_rgba(188,0,255,0.05)]">
               <div className="mb-10">
-                <h4 className="text-zinc-500 font-mono text-[9px] uppercase tracking-widest font-black mb-2">
+                <h4 className="text-cyber-purple font-mono text-[9px] uppercase tracking-widest font-black mb-2">
                   Community_Node
                 </h4>
-                <div className="text-5xl font-black tracking-tight">$0</div>
-                <p className="text-[10px] font-mono text-zinc-600 uppercase mt-4 tracking-tighter">
+                <div className="text-5xl font-black tracking-tight text-white">
+                  $0
+                </div>
+                <p className="text-[10px] font-mono text-cyber-purple uppercase mt-4 tracking-tighter">
                   Self-Hosted Perpetual License
                 </p>
               </div>
               <ul className="space-y-5 mb-12 flex-grow">
-                <li className="flex items-center gap-3 text-xs text-zinc-400 font-mono uppercase tracking-tight">
-                  <ShieldCheck className="w-4 h-4 text-zinc-600" /> OSS Core
+                <li className="flex items-center gap-3 text-xs text-zinc-200 font-mono uppercase tracking-tight">
+                  <ShieldCheck className="w-4 h-4 text-cyber-purple" /> OSS Core
                   Engine
                 </li>
-                <li className="flex items-center gap-3 text-xs text-zinc-400 font-mono uppercase tracking-tight">
-                  <GitBranch className="w-4 h-4 text-zinc-600" /> Basic
+                <li className="flex items-center gap-3 text-xs text-zinc-200 font-mono uppercase tracking-tight">
+                  <GitBranch className="w-4 h-4 text-cyber-purple" /> Basic
                   Archetypes
                 </li>
-                <li className="flex items-center gap-3 text-xs text-zinc-400 font-mono uppercase tracking-tight">
-                  <Globe className="w-4 h-4 text-zinc-600" /> BYOK Only
+                <li className="flex items-center gap-3 text-xs text-zinc-200 font-mono uppercase tracking-tight">
+                  <Globe className="w-4 h-4 text-cyber-purple" /> BYOK Only
                 </li>
               </ul>
               <Link
                 href="https://github.com/caopengau/serverlessclaw"
-                className="w-full py-4 rounded-sm border border-white/10 text-center hover:bg-white/5 transition-all text-[10px] font-black uppercase tracking-widest"
+                className="w-full py-4 rounded-sm border border-cyber-purple/30 text-center hover:bg-cyber-purple/10 transition-all text-[10px] font-black uppercase tracking-widest text-cyber-purple shadow-[0_0_15px_rgba(188,0,255,0.1)]"
               >
                 Fork_Repository
               </Link>
             </div>
 
-            {/* Pro Tier */}
-            <div className="glass-card p-10 border-cyber-blue/30 bg-cyber-blue/[0.02] relative flex flex-col scale-105 shadow-[0_0_80px_rgba(0,224,255,0.05)]">
+            {/* Pro Tier - EQUAL SCALE */}
+            <div className="glass-card p-10 border-cyber-blue/30 bg-cyber-blue/[0.02] relative flex flex-col hover:border-cyber-blue/50 transition-all shadow-[0_0_80px_rgba(0,224,255,0.05)]">
               <div className="absolute top-0 right-10 -translate-y-1/2 px-4 py-1.5 rounded-sm bg-cyber-blue text-black text-[9px] font-black uppercase tracking-[0.3em] shadow-[0_0_20px_rgba(0,224,255,0.3)]">
-                PRIORITY
+                MANAGED
               </div>
               <div className="mb-10">
                 <h4 className="text-cyber-blue font-mono text-[9px] uppercase tracking-widest font-black mb-2">
