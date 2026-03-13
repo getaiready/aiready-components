@@ -71,3 +71,4 @@ clean-cache: ## Clean .turbo/cache files older than 3 days
 clear-port: ## Clear common dev port
 	$(call kill_port,8888)
 	$(call kill_port,8887)
+	$(call kill_port,8886)
