@@ -13,7 +13,12 @@ import type {
   AiSignalClarityOptions,
 } from './types';
 
-import { isAmbiguousName, isMagicNumber, isMagicString } from './helpers';
+import {
+  isAmbiguousName,
+  isMagicNumber,
+  isMagicString,
+  isRedundantTypeConstant,
+} from './helpers';
 
 // ---------------------------------------------------------------------------
 // Main scanner
@@ -207,7 +212,30 @@ export async function scanFile(
               node.parent?.type?.includes('pair') ||
               node.parent?.type === 'assignment_expression';
 
-            if (!isKey && isMagicString(val)) {
+            console.log(
+              `[scanner] Visiting ${node.type}: ${val.slice(0, 20)}... (parent: ${node.parent?.type})`
+            );
+            const parentName =
+              node.parent?.nameNode?.text ||
+              node.parent?.childForFieldName('name')?.text ||
+              '';
+            if (parentName)
+              console.log(`[scanner] Parent name found: ${parentName}`);
+
+            if (!isKey && isRedundantTypeConstant(parentName, val)) {
+              console.log(`[scanner-ts] FOUND redundant constant: ${val}`);
+              issues.push({
+                type: IssueType.AiSignalClarity,
+                category: 'redundant-type-constant',
+                severity: Severity.Minor,
+                message: `Redundant type constant — in modern AI-native code, use literals or centralized union types for transparency.`,
+                location: {
+                  file: filePath,
+                  line: node.startPosition.row + 1,
+                },
+                suggestion: `Use '${val}' directly in your schema.`,
+              });
+            } else if (!isKey && isMagicString(val)) {
               signals.magicLiterals++;
               issues.push({
                 type: IssueType.MagicLiteral,
@@ -223,22 +251,44 @@ export async function scanFile(
           }
           // ESTree (TypeScript, JavaScript)
           else if (node.type === 'Literal') {
-            // Heuristic: ignore if this literal is being assigned to a named constant (UPPER_CASE)
             const isNamedConstant =
               parent?.type === 'VariableDeclarator' &&
               parent.id.type === 'Identifier' &&
               /^[A-Z0-9_]{3,}$/.test(parent.id.name);
 
-            // Heuristic: ignore if it's a key in an object (usually config or map keys)
             const isObjectKey =
               parent?.type === 'Property' && keyInParent === 'key';
 
-            // Heuristic: ignore if it's a JSX attribute like className
             const isJSXClassName =
               parent?.type === 'JSXAttribute' &&
               parent.name?.name === 'className';
 
-            if (isNamedConstant || isObjectKey || isJSXClassName) {
+            const redundantType =
+              typeof node.value === 'string'
+                ? isRedundantTypeConstant(
+                    parent?.type === 'VariableDeclarator' &&
+                      parent.id.type === 'Identifier'
+                      ? parent.id.name
+                      : '',
+                    node.value
+                  )
+                : false;
+
+            if (redundantType) {
+              issues.push({
+                type: IssueType.AiSignalClarity,
+                category: 'redundant-type-constant',
+                severity: Severity.Minor,
+                message: `Redundant type constant "${parent.id.name}" = '${
+                  node.value
+                }' — in modern AI-native code, use literals or centralized union types for transparency.`,
+                location: {
+                  file: filePath,
+                  line: node.loc?.start.line || 1,
+                },
+                suggestion: `Use '${node.value}' directly in your schema.`,
+              });
+            } else if (isNamedConstant || isObjectKey || isJSXClassName) {
               // Skip magic literal check for these contextually safe literals
             } else if (
               typeof node.value === 'number' &&
@@ -389,15 +439,24 @@ export async function scanFile(
         // Recurse ESTree
         else {
           for (const key in node) {
-            if (key === 'parent' || key === 'loc' || key === 'range') continue;
+            if (
+              key === 'parent' ||
+              key === 'loc' ||
+              key === 'range' ||
+              key === 'tokens'
+            )
+              continue;
             const child = node[key];
             if (child && typeof child === 'object') {
               if (Array.isArray(child)) {
-                child.forEach(
-                  (c) =>
-                    c && typeof c.type === 'string' && visitNode(c, node, key)
-                );
+                child.forEach((c) => {
+                  if (c && typeof c.type === 'string') {
+                    // console.log(`[scanner] Recursing into array child: ${c.type}`);
+                    visitNode(c, node, key);
+                  }
+                });
               } else if (typeof child.type === 'string') {
+                // console.log(`[scanner] Recursing into child: ${child.type}`);
                 visitNode(child, node, key);
               }
             }

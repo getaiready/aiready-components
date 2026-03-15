@@ -65,3 +65,26 @@ export function isMagicString(value: string): boolean {
 
   return !/^\s+$/.test(value);
 }
+
+export function isRedundantTypeConstant(name: string, value: any): boolean {
+  if (typeof value !== 'string') return false;
+
+  const typeMap: Record<string, string> = {
+    TYPE_STRING: 'string',
+    TYPE_OBJECT: 'object',
+    TYPE_ARRAY: 'array',
+    TYPE_NUMBER: 'number',
+    TYPE_BOOLEAN: 'boolean',
+    TYPE_INTEGER: 'integer',
+  };
+
+  // Check for exact matches first
+  if (typeMap[name] === value) return true;
+
+  // Check for prefix matches e.g. JSON_TYPE_STRING = 'string'
+  for (const [key, val] of Object.entries(typeMap)) {
+    if (name.endsWith(key) && value === val) return true;
+  }
+
+  return false;
+}
