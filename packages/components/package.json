@@ -6,30 +6,93 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./button": "./dist/components/button.js",
-    "./card": "./dist/components/card.js",
-    "./input": "./dist/components/input.js",
-    "./label": "./dist/components/label.js",
-    "./badge": "./dist/components/badge.js",
-    "./container": "./dist/components/container.js",
-    "./grid": "./dist/components/grid.js",
-    "./stack": "./dist/components/stack.js",
-    "./separator": "./dist/components/separator.js",
-    "./checkbox": "./dist/components/checkbox.js",
-    "./radio-group": "./dist/components/radio-group.js",
-    "./switch": "./dist/components/switch.js",
-    "./textarea": "./dist/components/textarea.js",
-    "./select": "./dist/components/select.js",
-    "./utils/cn": "./dist/utils/cn.js",
-    "./utils/colors": "./dist/utils/colors.js",
-    "./utils/formatters": "./dist/utils/formatters.js",
-    "./hooks/useDebounce": "./dist/hooks/useDebounce.js",
-    "./hooks/useD3": "./dist/hooks/useD3.js",
-    "./hooks/useForceSimulation": "./dist/hooks/useForceSimulation.js",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./button": {
+      "types": "./dist/components/button.d.ts",
+      "import": "./dist/components/button.js"
+    },
+    "./card": {
+      "types": "./dist/components/card.d.ts",
+      "import": "./dist/components/card.js"
+    },
+    "./input": {
+      "types": "./dist/components/input.d.ts",
+      "import": "./dist/components/input.js"
+    },
+    "./label": {
+      "types": "./dist/components/label.d.ts",
+      "import": "./dist/components/label.js"
+    },
+    "./badge": {
+      "types": "./dist/components/badge.d.ts",
+      "import": "./dist/components/badge.js"
+    },
+    "./container": {
+      "types": "./dist/components/container.d.ts",
+      "import": "./dist/components/container.js"
+    },
+    "./grid": {
+      "types": "./dist/components/grid.d.ts",
+      "import": "./dist/components/grid.js"
+    },
+    "./stack": {
+      "types": "./dist/components/stack.d.ts",
+      "import": "./dist/components/stack.js"
+    },
+    "./separator": {
+      "types": "./dist/components/separator.d.ts",
+      "import": "./dist/components/separator.js"
+    },
+    "./checkbox": {
+      "types": "./dist/components/checkbox.d.ts",
+      "import": "./dist/components/checkbox.js"
+    },
+    "./radio-group": {
+      "types": "./dist/components/radio-group.d.ts",
+      "import": "./dist/components/radio-group.js"
+    },
+    "./switch": {
+      "types": "./dist/components/switch.d.ts",
+      "import": "./dist/components/switch.js"
+    },
+    "./textarea": {
+      "types": "./dist/components/textarea.d.ts",
+      "import": "./dist/components/textarea.js"
+    },
+    "./select": {
+      "types": "./dist/components/select.d.ts",
+      "import": "./dist/components/select.js"
+    },
+    "./utils/cn": {
+      "types": "./dist/utils/cn.d.ts",
+      "import": "./dist/utils/cn.js"
+    },
+    "./utils/colors": {
+      "types": "./dist/utils/colors.d.ts",
+      "import": "./dist/utils/colors.js"
+    },
+    "./utils/formatters": {
+      "types": "./dist/utils/formatters.d.ts",
+      "import": "./dist/utils/formatters.js"
+    },
+    "./hooks/useDebounce": {
+      "types": "./dist/hooks/useDebounce.d.ts",
+      "import": "./dist/hooks/useDebounce.js"
+    },
+    "./hooks/useD3": {
+      "types": "./dist/hooks/useD3.d.ts",
+      "import": "./dist/hooks/useD3.js"
+    },
+    "./hooks/useForceSimulation": {
+      "types": "./dist/hooks/useForceSimulation.d.ts",
+      "import": "./dist/hooks/useForceSimulation.js"
+    },
     "./charts/ForceDirectedGraph": {
-      "import": "./dist/charts/ForceDirectedGraph.js",
-      "types": "./dist/charts/ForceDirectedGraph.d.ts"
+      "types": "./dist/charts/ForceDirectedGraph.d.ts",
+      "import": "./dist/charts/ForceDirectedGraph.js"
     },
     "./tailwind-config": "./tailwind.config.js"
   },
