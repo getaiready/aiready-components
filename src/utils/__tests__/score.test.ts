@@ -3,7 +3,6 @@ import {
   scoreColor,
   scoreBg,
   scoreLabel,
-  scoreGlow,
   getScoreRating,
 } from '../score';
 
