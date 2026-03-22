@@ -2,9 +2,12 @@ import { analyzeContext } from '../analyzer';
 import { generateSummary } from '../summary';
 import {
   generateReportHead,
+  generateReportHero,
   generateStatCards,
+  generateIssueSummary,
   generateTable,
   generateReportFooter,
+  wrapInCard,
 } from '@aiready/core';
 
 /**
@@ -33,22 +36,21 @@ export function generateHTMLReport(
     },
   ]);
 
-  let body = `<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 8px; margin-bottom: 30px;">
-    <h1 style="border: none; color: white; margin: 0;">🔍 AIReady Context Analysis Report</h1>
-    <p style="margin: 10px 0 0 0;">Generated on ${new Date().toLocaleString()}</p>
-  </div>
+  const hero = generateReportHero(
+    '🔍 AIReady Context Analysis Report',
+    `Generated on ${new Date().toLocaleString()}`
+  );
+
+  let body = `${hero}
 ${stats}`;
 
   if (totalIssues > 0) {
-    body += `<div class="card" style="margin-bottom: 30px;">
-    <h2>⚠️ Issues Summary</h2>
-    <p>
-      <span class="critical">🔴 Critical: ${summary.criticalIssues}</span> &nbsp;
-      <span class="major">🟡 Major: ${summary.majorIssues}</span> &nbsp;
-      <span class="minor">🔵 Minor: ${summary.minorIssues}</span>
-    </p>
-    <p><strong>Potential Savings:</strong> ${summary.totalPotentialSavings.toLocaleString()} tokens</p>
-  </div>`;
+    body += generateIssueSummary(
+      summary.criticalIssues,
+      summary.majorIssues,
+      summary.minorIssues,
+      summary.totalPotentialSavings
+    );
   }
 
   if (summary.fragmentedModules.length > 0) {
@@ -58,10 +60,13 @@ ${stats}`;
       `${(m.fragmentationScore * 100).toFixed(0)}%`,
       m.totalTokens.toLocaleString(),
     ]);
-    body += `<div class="card" style="margin-bottom: 30px;">
-    <h2>🧩 Fragmented Modules</h2>
-    ${generateTable({ headers: ['Domain', 'Files', 'Fragmentation', 'Token Cost'], rows: fragmentedRows })}
-  </div>`;
+    body += wrapInCard(
+      generateTable({
+        headers: ['Domain', 'Files', 'Fragmentation', 'Token Cost'],
+        rows: fragmentedRows,
+      }),
+      '🧩 Fragmented Modules'
+    );
   }
 
   if (summary.topExpensiveFiles.length > 0) {
@@ -70,10 +75,13 @@ ${stats}`;
       `${f.contextBudget.toLocaleString()} tokens`,
       `<span class="issue-${f.severity}">${f.severity.toUpperCase()}</span>`,
     ]);
-    body += `<div class="card" style="margin-bottom: 30px;">
-    <h2>💸 Most Expensive Files</h2>
-    ${generateTable({ headers: ['File', 'Context Budget', 'Severity'], rows: expensiveRows })}
-  </div>`;
+    body += wrapInCard(
+      generateTable({
+        headers: ['File', 'Context Budget', 'Severity'],
+        rows: expensiveRows,
+      }),
+      '💸 Most Expensive Files'
+    );
   }
 
   const footer = generateReportFooter({
