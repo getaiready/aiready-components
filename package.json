@@ -19,21 +19,22 @@
     "token optimization"
   ],
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
     "prebuild": "make clean-cache",
-    "build": "./scripts/build.sh build",
-    "test": "./scripts/build.sh test",
-    "lint": "./scripts/build.sh lint",
+    "build": "./tooling/scripts/build.sh build",
+    "test": "./tooling/scripts/build.sh test",
+    "lint": "./tooling/scripts/build.sh lint",
     "dev": "turbo run dev --filter=!@aiready/platform --concurrency 11",
     "clean": "turbo run clean && rm -rf node_modules",
-    "consume-reports": "node ./scripts/consume-aiready-reports.js",
+    "consume-reports": "node ./tooling/scripts/consume-aiready-reports.js",
     "graph": "nx graph",
-    "visualize": "node scripts/visualize.js",
+    "visualize": "node tooling/scripts/visualize.js",
     "prepare": "husky",
     "lint-staged": "lint-staged",
-    "discord:setup": "cd discord && npx tsx src/setup.ts",
+    "discord:setup": "cd apps/discord && npx tsx src/setup.ts",
     "type-check": "tsc --noEmit",
     "format-check": "prettier --check . --ignore-path .prettierignore"
   },

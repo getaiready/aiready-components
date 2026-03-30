@@ -10,7 +10,7 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@aiready/*": ["packages/*/dist", "packages/*/src"]
+      "@aiready/*": ["packages/*/dist", "packages/*/src", "apps/*/src"]
     },
     "typeRoots": ["./node_modules/@types"],
     "types": ["node"]

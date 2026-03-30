@@ -16,6 +16,7 @@ coverage
 .sst
 .open-next
 landing/out
+apps/landing/out
 **/sst-env.d.ts
 **/next-env.d.ts
 
@@ -36,11 +37,12 @@ Thumbs.db
 
 # Ignore files that Prettier cannot parse in this repo
 .github/
-action-marketplace/
+tooling/github-action/
+tooling/docker/
+tooling/homebrew/
+apps/vscode-extension/
+apps/serverlessclaw/
 packages/visualizer/web/
-vscode-extension/
-docker/
-homebrew/
 
 # Generated reports and tool artifacts
 **/.aiready/

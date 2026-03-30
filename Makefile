@@ -1,13 +1,13 @@
 # Hub includes these spokes
-include makefiles/Makefile.shared.mk
-include makefiles/Makefile.quality.mk
-include makefiles/Makefile.setup.mk
-include makefiles/Makefile.build.mk
-include makefiles/Makefile.test.mk
-include makefiles/Makefile.release.mk  # This includes Makefile.publish.mk
-include makefiles/Makefile.stats.mk
-include makefiles/Makefile.deploy.mk
-include makefiles/Makefile.distribution.mk
+include tooling/makefiles/Makefile.shared.mk
+include tooling/makefiles/Makefile.quality.mk
+include tooling/makefiles/Makefile.setup.mk
+include tooling/makefiles/Makefile.build.mk
+include tooling/makefiles/Makefile.test.mk
+include tooling/makefiles/Makefile.release.mk  # This includes Makefile.publish.mk
+include tooling/makefiles/Makefile.stats.mk
+include tooling/makefiles/Makefile.deploy.mk
+include tooling/makefiles/Makefile.distribution.mk
 
 # (PNPM and TURBO are defined in Makefile.shared.mk)
 
@@ -16,7 +16,7 @@ include makefiles/Makefile.distribution.mk
 help-agent: help # Show optimized help for AI agents
 
 help: ## Show all targets and descriptions in a markdown table (one aligned table per spoke, with color and emoji)
-	@for f in $(wildcard makefiles/Makefile.*.mk); do \
+	@for f in $(wildcard tooling/makefiles/Makefile.*.mk); do \
 		if ! grep -qE '^[a-zA-Z0-9_-]+:.*## ' "$$f"; then continue; fi; \
 		spoke=$$(basename $$f); \
 		spoke=$${spoke#Makefile.}; spoke=$${spoke%.mk}; \
@@ -49,7 +49,7 @@ help: ## Show all targets and descriptions in a markdown table (one aligned tabl
 		echo ""; \
 	done
 
-pre-commit: ## Run pre-commit checks (lint-staged, build, check)
+pre-commit: ## Run pre-commit checks (lint-staged on staged files only)
 	@$(call log_step,Running pre-commit checks...)
 	@if ! $(MAKE) QUIET=1 lint-staged; then \
 		$(call separator,$(RED)); \
@@ -60,26 +60,14 @@ pre-commit: ## Run pre-commit checks (lint-staged, build, check)
 		echo ""; \
 		exit 1; \
 	fi
-	@$(call log_step,Running build and quality checks (Turbo)...)
-	@if command -v $(TURBO) >/dev/null 2>&1 || [ -f ./node_modules/.bin/turbo ]; then \
-		unset npm_config_loglevel; \
-		$(TURBO) run build lint type-check format-check $(SILENT_TURBO) || { \
-			$(call separator,$(RED)); \
-			$(call log_error,Turbo checks failed); \
-			$(call separator,$(RED)); \
-			exit 1; \
-		}; \
-	else \
-		$(MAKE) $(MAKE_PARALLEL) QUIET=1 build check || exit 1; \
-	fi
 	@$(call log_success,Pre-commit checks passed)
 
-pre-push: ## Run pre-push checks (AIReady scan)
+pre-push: ## Run pre-push checks (quality checks + AIReady scan)
 	@if [ "$$SKIP_PRE_PUSH" = "true" ]; then \
 		$(call log_info,⏭️  Skipping AIReady pre-push scan (SKIP_PRE_PUSH=true)); \
 	else \
 		$(call log_step,🔍 Checking for un-synced spoke changes...); \
-		SPOKE_PATTERN="^(packages/|landing/|clawmore/|serverlessclaw/|vscode-extension/|action-marketplace/)"; \
+		SPOKE_PATTERN="^(packages/|apps/|tooling/github-action/|tooling/homebrew/)"; \
 		CHANGED_SPOKES=$$(git diff --name-only origin/$(TARGET_BRANCH) 2>/dev/null | grep -E "$$SPOKE_PATTERN" | cut -d/ -f1-2 | sort -u); \
 		if [ -n "$$CHANGED_SPOKES" ]; then \
 			$(call separator,$(RED)); \
@@ -91,6 +79,14 @@ pre-push: ## Run pre-push checks (AIReady scan)
 			echo ""; \
 			exit 1; \
 		fi; \
+		$(call log_step,🔧 Running quality checks (lint + type-check + format-check) in parallel...); \
+		if command -v $(TURBO) >/dev/null 2>&1 || [ -f ./node_modules/.bin/turbo ]; then \
+			unset npm_config_loglevel; \
+			$(TURBO) run lint type-check format-check || { \
+				$(call log_error,Quality checks failed — fix before pushing); \
+				exit 1; \
+			}; \
+		fi; \
 		$(call log_step,🚀 Running AIReady pre-push scan (Threshold: 75)...); \
 		aiready scan . --threshold 75; \
 	fi
@@ -98,3 +94,8 @@ pre-push: ## Run pre-push checks (AIReady scan)
 lint-staged: ## Run lint-staged on changed files
 	@$(call log_info,Running lint-staged...)
 	@$(PNPM) $(SILENT_PNPM) lint-staged
+
+debug-spokes:
+	@echo "ALL_SPOKES: $(ALL_SPOKES)"
+	@echo "ROOT_DIR: $(ROOT_DIR)"
+	@echo "CWD: $$(pwd)"
