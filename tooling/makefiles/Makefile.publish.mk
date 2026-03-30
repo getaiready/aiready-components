@@ -413,7 +413,7 @@ sync: ## Push monorepo to origin and sync all spokes to their public repos. Use 
 
 .PHONY: github-sync-spoke-%
 github-sync-spoke-%:
-	@spk_dir="$$(call SPOKE_DIR,$*)"; \
+	@spk_dir="$(call SPOKE_DIR,$*)"; \
 	if [ -f "$(ROOT_DIR)/$$spk_dir/package.json" ]; then \
 		should_sync=false; \
 		if [ "$(FORCE)" = "true" ] || [ "$(CHANGED_FILES)" = "FORCE_ALL" ] || echo "$(CHANGED_FILES)" | grep -q "$$spk_dir/"; then \
