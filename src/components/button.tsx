@@ -22,6 +22,11 @@ const buttonVariants = cva(
           'bg-slate-800/50 backdrop-blur-sm border border-slate-700 text-slate-200 hover:bg-slate-700/50 hover:text-white',
         accent:
           'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20',
+        purple:
+          'bg-purple-600 text-white shadow-lg shadow-purple-500/20 hover:bg-purple-500 hover:scale-[1.02] active:scale-[0.98]',
+        amber:
+          'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/10 hover:bg-amber-400 hover:scale-[1.02] active:scale-[0.98]',
+        blue: 'bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500 hover:scale-[1.02] active:scale-[0.98]',
       },
       size: {
         default: 'h-10 px-4 py-2',

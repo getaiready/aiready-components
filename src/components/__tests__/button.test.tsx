@@ -22,6 +22,12 @@ describe('Button', () => {
 
     rerender(<Button variant="ghost">Ghost</Button>);
     expect(screen.getByRole('button')).toBeInTheDocument();
+
+    rerender(<Button variant="amber">Amber</Button>);
+    expect(screen.getByRole('button')).toBeInTheDocument();
+
+    rerender(<Button variant="blue">Blue</Button>);
+    expect(screen.getByRole('button')).toBeInTheDocument();
   });
 
   it('renders with different sizes', () => {
